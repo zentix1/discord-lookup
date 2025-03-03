@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Account Lookup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #5865F2;
+            --primary-dark: #4752C4;
+            --background: #36393F;
+            --background-light: #40444B;
+            --text: #FFFFFF;
+            --text-muted: #72767D;
+            --success: #43B581;
+            --danger: #F04747;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: var(--background-light);
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: none;
+            background-color: var(--background);
+            color: var(--text);
+            border-radius: 4px 0 0 4px;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background-color: var(--primary);
+            color: var(--text);
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        #result {
+            background-color: var(--background);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-right: 1rem;
+        }
+
+        .user-details h2 {
+            margin-bottom: 0.5rem;
+        }
+
+        .user-details p {
+            margin: 0.25rem 0;
+            color: var(--text-muted);
+        }
+
+        .error {
+            color: var(--danger);
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Discord Account Lookup</h1>
+        <div class="input-group">
+            <input type="text" id="userId" placeholder="Enter Discord User ID">
+            <button onclick="lookupUser()">Lookup</button>
+        </div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = 'https://discord.com/api/v10/users/';
+
+        async function lookupUser() {
+            const userId = document.getElementById('userId').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            if (!userId) {
+                resultDiv.innerHTML = '<p class="error">Please enter a Discord User ID</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p class="loading">Loading user information...</p>';
+
+            try {
+                const response = await fetch(API_ENDPOINT + userId, {
+                    headers: {
+                        'Authorization': 'MTM0NTk0MDc0OTQ2Mzg0NjkyMg.GE-R8t.z_qWqDKIDPN_RHtRsLNUKy6tm8-qdCWwsViKio'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('User not found or API error');
+                }
+
+                const userData = await response.json();
+                displayUserInfo(userData);
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
+
+        function displayUserInfo(user) {
+            const resultDiv = document.getElementById('result');
+            const createdAt = new Date(decodeSnowflake(user.id));
+            const accountAge = getAccountAge(createdAt);
+
+            const avatarUrl = user.avatar
+                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                : 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+            resultDiv.innerHTML = `
+                <div class="user-info">
+                    <img src="${avatarUrl}" alt="User Avatar" class="avatar">
+                    <div class="user-details">
+                        <h2>${user.username}#${user.discriminator}</h2>
+                        <p><strong>Display Name:</strong> ${user.global_name || 'Not set'}</p>
+                        <p><strong>User ID:</strong> ${user.id}</p>
+                        <p><strong>Account Created:</strong> ${createdAt.toUTCString()}</p>
+                        <p><strong>Account Age:</strong> ${accountAge}</p>
+                        <p><strong>Bot:</strong> ${user.bot ? 'Yes' : 'No'}</p>
+                        <p><strong>System:</strong> ${user.system ? 'Yes' : 'No'}</p>
+                        <p><strong>Banner Color:</strong> ${user.accent_color ? `#${user.accent_color.toString(16)}` : 'None'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function decodeSnowflake(snowflake) {
+            return Number(BigInt(snowflake) >> 22n) + 1420070400000;
+        }
+
+        function getAccountAge(createdAt) {
+            const now = new Date();
+            const diffInMs = now - createdAt;
+            const years = Math.floor(diffInMs / (1000 * 60 * 60 * 24 * 365));
+            const months = Math.floor((diffInMs % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
+            const days = Math.floor((diffInMs % (1000 * 60 * 60 * 24 * 30)) / (1000 * 60 * 60 * 24));
+
+            let age = '';
+            if (years > 0) age += `${years} year${years > 1 ? 's' : ''} `;
+            if (months > 0) age += `${months} month${months > 1 ? 's' : ''} `;
+            if (days > 0) age += `${days} day${days > 1 ? 's' : ''}`;
+
+            return age.trim();
+        }
+    </script>
+</body>
+</html>
+
